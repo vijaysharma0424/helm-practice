@@ -1,0 +1,42 @@
+name: Helm CI
+
+on:
+  push:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/**'
+  pull_request:
+
+jobs:
+  test-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kind
+        uses: engineerd/setup-kind@v0.5.0
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.27.0'
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+
+      - name: Create kind cluster
+        run: |
+          kind create cluster --name helm-practice
+          kubectl wait --for=condition=Ready pods --all --timeout=120s || true
+
+      - name: Lint chart
+        run: helm lint charts/nginx
+
+      - name: Install chart
+        run: helm upgrade --install nginx charts/nginx --wait --timeout 3m
+
+      - name: Run helm tests
+        run: helm test nginx --timeout 3m || true
+
+      - name: Uninstall
+        run: helm uninstall nginx || true
